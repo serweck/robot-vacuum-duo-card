@@ -1,7 +1,13 @@
-import { LitElement, html } from "lit";
-import type { CardConfig } from "./types";
+import { LitElement, html, nothing, type TemplateResult } from "lit";
+import type { HomeAssistant } from "custom-card-helpers";
+import type { Alert, CardConfig, RobotConfig, RobotView, SelectView, ServiceCall } from "./types";
+import { buildRobotView } from "./model";
+import { DEFAULT_THRESHOLD, errorAlerts, maintenanceAlerts, maintenanceSummary } from "./alerts";
+import { pressRoutine, primaryAction, returnHome, selectOption, setFanSpeed, toggleLock } from "./actions";
+import { styles } from "./styles";
 
 export const CARD_TAG = "robot-vacuum-duo-card";
+export const CARD_VERSION = "0.1.0";
 
 export function validateConfig(config: Partial<CardConfig> | undefined): CardConfig {
   const robots = config?.robots;
@@ -12,8 +18,33 @@ export function validateConfig(config: Partial<CardConfig> | undefined): CardCon
   return config as CardConfig;
 }
 
+const batteryIcon = (b: number | null): string => {
+  if (b === null) return "mdi:battery-unknown";
+  if (b >= 95) return "mdi:battery";
+  if (b < 10) return "mdi:battery-outline";
+  return `mdi:battery-${Math.floor(b / 10) * 10}`;
+};
+
 export class RobotVacuumDuoCard extends LitElement {
-  private _config?: CardConfig;
+  static styles = styles;
+  static properties = {
+    hass: { attribute: false },
+    _config: { state: true },
+    _open: { state: true },
+    _maintOpen: { state: true },
+  };
+
+  // `declare` para que ningún compilador cree campos propios que tapen los accesores reactivos de lit.
+  declare hass?: HomeAssistant;
+  declare private _config?: CardConfig;
+  declare private _open: Set<number>;
+  declare private _maintOpen: boolean;
+
+  constructor() {
+    super();
+    this._open = new Set();
+    this._maintOpen = false;
+  }
 
   setConfig(config: CardConfig): void {
     this._config = validateConfig(config);
@@ -23,8 +54,118 @@ export class RobotVacuumDuoCard extends LitElement {
     return 3 + (this._config?.robots.length ?? 0) * 2;
   }
 
+  private _call(c: ServiceCall): void {
+    this.hass?.callService(c.domain, c.service, c.data);
+  }
+
+  private _toggleRobot(i: number): void {
+    const next = new Set(this._open);
+    if (next.has(i)) next.delete(i);
+    else next.add(i);
+    this._open = next;
+  }
+
   render() {
-    return html``;
+    if (!this._config || !this.hass) return nothing;
+    const cfg = this._config;
+    const hass = this.hass;
+    const views = cfg.robots.map((r) => buildRobotView(hass, r));
+    const errors = errorAlerts(hass, cfg.robots);
+    const maint = maintenanceAlerts(hass, cfg.robots, cfg.maintenance_threshold ?? DEFAULT_THRESHOLD);
+    const summary = maintenanceSummary(maint, cfg.robots.map((r) => r.name));
+    return html`
+      <ha-card>
+        <div class="top">
+          <div class="t"><ha-icon icon="mdi:robot-vacuum"></ha-icon>${cfg.title ?? "Robots"}</div>
+          ${this._renderLock()}
+        </div>
+        ${errors.map((e) => html`<div class="alert err"><ha-icon icon="mdi:alert-circle"></ha-icon><div>${e.text}</div></div>`)}
+        ${summary
+          ? html`<div class="alert maint" @click=${() => (this._maintOpen = !this._maintOpen)}>
+                <ha-icon icon="mdi:wrench"></ha-icon><div>${summary} · toca para ${this._maintOpen ? "ocultar" : "ver"}</div>
+              </div>
+              ${this._maintOpen ? this._renderMaint(maint) : nothing}`
+          : nothing}
+        <div class="robots">
+          ${cfg.robots.map((r, i) => this._renderRobot(r, views[i], errors.filter((e) => e.robot === r.name), i))}
+        </div>
+      </ha-card>
+    `;
+  }
+
+  private _renderLock(): TemplateResult | typeof nothing {
+    const lock = this._config?.lock;
+    if (!lock || !this.hass?.states[lock]) return nothing;
+    const on = this.hass.states[lock].state === "on";
+    return html`<div class="lock ${on ? "" : "off"}" @click=${() => this._call(toggleLock(lock))}>
+      <ha-icon icon="mdi:robot-vacuum-off"></ha-icon>
+      <span>${on ? "Limpieza automática bloqueada" : "Limpieza automática activa"}</span>
+    </div>`;
+  }
+
+  private _renderMaint(maint: Alert[]): TemplateResult {
+    const many = (this._config?.robots.length ?? 0) > 1;
+    return html`<div class="maint-list">
+      ${maint.map((a) => html`<div class="mi">
+        <span>${many ? `${a.robot} · ` : ""}${a.label}</span><b class=${(a.value ?? 0) < 0 ? "" : "warn"}>${a.value} h</b>
+      </div>`)}
+    </div>`;
+  }
+
+  private _renderRobot(r: RobotConfig, v: RobotView, errors: Alert[], i: number): TemplateResult {
+    const open = this._open.has(i);
+    const ringValue = v.cleaning ? v.progress ?? 0 : v.battery ?? 0;
+    const color = v.cleaning ? "var(--rv-blue)" : v.battery !== null && v.battery < 20 ? "var(--rv-red)" : "var(--rv-green)";
+    return html`<div class="robot">
+      <div class="row" @click=${() => this._toggleRobot(i)}>
+        <div class="ring ${v.cleaning ? "run" : ""}" style="--p:${ringValue};--c:${color}">
+          <div><ha-icon icon="mdi:robot-vacuum"></ha-icon></div>
+        </div>
+        <div class="info">
+          <div class="name">${v.name}${errors.length ? html`<span class="badge">${errors[0].label.toLowerCase()}</span>` : nothing}</div>
+          <div class="state">${v.statusText}</div>
+          <div class="bat"><ha-icon icon=${batteryIcon(v.battery)}></ha-icon>${v.battery === null ? "—" : `${v.battery} %`}</div>
+        </div>
+        <div class="btns" @click=${(e: Event) => e.stopPropagation()}>
+          <button class="ib pri" title=${v.cleaning ? "Pausa" : "Empezar"} @click=${() => this._call(primaryAction(v, r.vacuum))}>
+            <ha-icon icon=${v.cleaning ? "mdi:pause" : "mdi:play"}></ha-icon>
+          </button>
+          <button class="ib home" title="A la base" @click=${() => this._call(returnHome(r.vacuum))}>
+            <ha-icon icon="mdi:home-import-outline"></ha-icon>
+          </button>
+        </div>
+      </div>
+      ${v.cleaning ? html`<div class="bar"><div style="width:${v.progress ?? 0}%"></div></div>` : nothing}
+      ${open ? this._renderDetail(r, v) : nothing}
+    </div>`;
+  }
+
+  private _renderSeg(cls: string, sel: SelectView | null, onPick: (value: string) => ServiceCall): TemplateResult | typeof nothing {
+    if (!sel || !sel.options.length) return nothing;
+    return html`<div class="seg ${cls}">
+      ${sel.options.map((o) => html`<div class=${o.value === sel.current ? "on" : ""}
+        @click=${() => o.value !== sel.current && this._call(onPick(o.value))}>${o.label}</div>`)}
+    </div>`;
+  }
+
+  private _renderDetail(r: RobotConfig, v: RobotView): TemplateResult {
+    return html`<div class="detail">
+      ${v.routines.length
+        ? html`<div class="lbl">Rutinas</div>
+            <div class="chips">
+              ${v.routines.map((rt) => html`<div class="chip rut ${rt.available ? "" : "dis"}"
+                @click=${() => rt.available && this._call(pressRoutine(rt.entity))}><ha-icon icon="mdi:play-circle-outline"></ha-icon>${rt.name}</div>`)}
+            </div>`
+        : nothing}
+      ${v.mode ? html`<div class="lbl">Modo</div>${this._renderSeg("mode", v.mode, (o) => selectOption(v.mode!.entity, o))}` : nothing}
+      ${v.fanSpeed ? html`<div class="lbl">Aspiración</div>${this._renderSeg("fan", v.fanSpeed, (o) => setFanSpeed(r.vacuum, o))}` : nothing}
+      ${v.mopIntensity
+        ? html`<div class="lbl">Mopa</div>${this._renderSeg("mop", v.mopIntensity, (o) => selectOption(v.mopIntensity!.entity, o))}`
+        : nothing}
+      <div class="lbl">Habitaciones</div>
+      <div class="rooms-note"><ha-icon icon="mdi:map-marker-off-outline"></ha-icon>Sin áreas asignadas todavía</div>
+      <div class="pad"></div>
+    </div>`;
   }
 }
 
@@ -37,3 +178,6 @@ w.customCards.push({
   name: "Robot Vacuum Duo Card",
   description: "Dos robots aspiradores Roborock en una tarjeta",
 });
+
+/* eslint-disable no-console */
+console.info(`%c ROBOT-VACUUM-DUO-CARD %c v${CARD_VERSION} `, "color:#fff;background:#3b82f6;font-weight:700", "color:#3b82f6");

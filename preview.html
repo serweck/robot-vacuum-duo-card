@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>robot-vacuum-duo-card · vista previa</title>
+<link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" rel="stylesheet">
+<style>
+  body { background:#111; color:#e1e1e1; font-family:Roboto, "Segoe UI", sans-serif; padding:24px; margin:0;
+         --primary-text-color:#e1e1e1; --secondary-text-color:#9b9b9b; --card-background-color:#1c1c1c;
+         --ha-card-background:#1c1c1c; --secondary-background-color:#262626; --divider-color:#2c2c2c;
+         --primary-color:#3b82f6; --text-primary-color:#fff; }
+  ha-card { display:block; background:var(--ha-card-background); border:1px solid #2c2c2c; border-radius:16px; }
+  .wrap { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; }
+  .col { width:430px; } h3 { font-weight:500; color:#9b9b9b; font-size:13px; margin:0 0 8px; }
+  #log { font:12px monospace; color:#9b9b9b; white-space:pre; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="col"><h3>Datos de hoy (los dos en la base)</h3><div id="a"></div></div>
+  <div class="col"><h3>S7 limpiando el pasillo, bloqueo desactivado</h3><div id="b"></div></div>
+</div>
+<div id="log">Llamadas a servicios:</div>
+<script type="module">
+  // ha-icon mínimo para la vista previa (en HA lo pone el frontend). Como el de HA, pinta en su shadow DOM:
+  // si metiera hijos en el DOM normal mientras lit clona la plantilla, descuadraría las partes de lit.
+  const MDI = "https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css";
+  customElements.define("ha-icon", class extends HTMLElement {
+    static get observedAttributes() { return ["icon"]; }
+    constructor() { super(); this.attachShadow({ mode: "open" }); }
+    connectedCallback() { this.render(); }
+    attributeChangedCallback() { this.render(); }
+    render() {
+      const icon = (this.getAttribute("icon") || "").replace("mdi:", "");
+      this.shadowRoot.innerHTML = `<link rel="stylesheet" href="${MDI}"><style>:host{display:inline-flex}</style>`
+        + `<i class="mdi mdi-${icon}" style="font-size:var(--mdc-icon-size,24px);line-height:1"></i>`;
+    }
+  });
+  customElements.define("ha-card", class extends HTMLElement {});
+  await import("./dist/robot-vacuum-duo-card.js");
+
+  const st = (state, attributes = {}) => ({ state, attributes });
+  const S7 = "s7_max_ultra", QR = "roborock_qrevo_edge_series";
+  const base = {
+    [`vacuum.${S7}`]: st("docked", { friendly_name: "S7 Max Ultra", fan_speed: "max", fan_speed_list: ["quiet", "balanced", "turbo", "max", "max_plus", "off", "custom"] }),
+    [`vacuum.${QR}`]: st("docked", { friendly_name: "Roborock Qrevo Edge Series", fan_speed: "max", fan_speed_list: ["quiet", "balanced", "turbo", "max", "max_plus", "off", "smart_mode", "custom"] }),
+    [`sensor.${S7}_bateria`]: st("100"), [`sensor.${QR}_bateria`]: st("100"),
+    [`sensor.${S7}_habitacion_actual`]: st("Pasillo"), [`sensor.${QR}_habitacion_actual`]: st("Salón"),
+    [`sensor.${S7}_progreso_de_la_limpieza`]: st("0"), [`sensor.${QR}_progreso_de_la_limpieza`]: st("0"),
+    [`sensor.${S7}_finalizacion_de_la_ultima_limpieza`]: st("2026-10-15T13:57:25+00:00"),
+    [`sensor.${QR}_finalizacion_de_la_ultima_limpieza`]: st("2026-10-14T17:24:26+00:00"),
+    [`select.salon_${S7}_modo_de_limpieza`]: st("vac_and_mop", { options: ["vacuum", "vac_and_mop", "mop", "custom"] }),
+    [`select.${QR}_modo_de_limpieza`]: st("vac_and_mop", { options: ["vacuum", "vac_and_mop", "mop", "custom", "smart_mode"] }),
+    [`select.${S7}_intensidad_de_la_mopa`]: st("standard", { options: ["off", "mild", "standard", "intense", "custom"] }),
+    [`select.${QR}_intensidad_de_la_mopa`]: st("high", { options: ["off", "low", "medium", "high", "custom_water_flow", "smart_mode", "custom"] }),
+    [`button.${S7}_cocina_full`]: st("unavailable", { friendly_name: "S7 Max Ultra Cocina full" }),
+    [`button.${QR}_cocina`]: st("unknown", { friendly_name: "Roborock Qrevo Edge Series Cocina" }),
+    [`sensor.${S7}_error_de_aspirador`]: st("none"), [`sensor.${S7}_error_en_la_base`]: st("water_empty"),
+    [`sensor.${QR}_error_de_aspirador`]: st("none"), [`sensor.${QR}_dock_error_en_la_base`]: st("ok"),
+    [`sensor.${S7}_tiempo_restante_del_cepillo_principal`]: st("-6.67"), [`sensor.${S7}_tiempo_restante_del_cepillo_lateral`]: st("-106.67"),
+    [`sensor.${S7}_tiempo_restante_del_filtro`]: st("-156.67"), [`sensor.${S7}_tiempo_restante_del_sensor`]: st("-201.08"),
+    [`sensor.${S7}_dock_tiempo_restante_del_colador`]: st("-3"), [`sensor.${S7}_dock_tiempo_restante_del_cepillo_de_mantenimiento`]: st("-25"),
+    [`sensor.${QR}_tiempo_restante_del_cepillo_principal`]: st("231.3"), [`sensor.${QR}_tiempo_restante_del_cepillo_lateral`]: st("131.1"),
+    [`sensor.${QR}_tiempo_restante_del_filtro`]: st("81.3"), [`sensor.${QR}_tiempo_restante_del_sensor`]: st("-38.87"),
+    [`sensor.${QR}_dock_tiempo_restante_del_colador`]: st("-63"),
+    "input_boolean.bloquear_limpieza_planta_baja": st("on"),
+  };
+  const cons = (p, extra) => [["cepillo_principal", "Cepillo principal"], ["cepillo_lateral", "Cepillo lateral"], ["filtro", "Filtro"], ["sensor", "Sensores"]]
+    .map(([k, name]) => ({ entity: `sensor.${p}_tiempo_restante_del_${k}`, name })).concat(extra);
+  const config = {
+    title: "Robots", lock: "input_boolean.bloquear_limpieza_planta_baja",
+    robots: [
+      { name: "S7 Max Ultra", vacuum: `vacuum.${S7}`, battery: `sensor.${S7}_bateria`, current_room: `sensor.${S7}_habitacion_actual`,
+        progress: `sensor.${S7}_progreso_de_la_limpieza`, last_clean_end: `sensor.${S7}_finalizacion_de_la_ultima_limpieza`,
+        mode: `select.salon_${S7}_modo_de_limpieza`, mop_intensity: `select.${S7}_intensidad_de_la_mopa`,
+        errors: [{ entity: `sensor.${S7}_error_de_aspirador`, name: "Robot" }, { entity: `sensor.${S7}_error_en_la_base`, name: "Base" }],
+        routines: [`button.${S7}_cocina_full`],
+        consumables: cons(S7, [{ entity: `sensor.${S7}_dock_tiempo_restante_del_colador`, name: "Colador base" },
+                               { entity: `sensor.${S7}_dock_tiempo_restante_del_cepillo_de_mantenimiento`, name: "Cepillo base" }]) },
+      { name: "Qrevo Edge", vacuum: `vacuum.${QR}`, battery: `sensor.${QR}_bateria`, current_room: `sensor.${QR}_habitacion_actual`,
+        progress: `sensor.${QR}_progreso_de_la_limpieza`, last_clean_end: `sensor.${QR}_finalizacion_de_la_ultima_limpieza`,
+        mode: `select.${QR}_modo_de_limpieza`, mop_intensity: `select.${QR}_intensidad_de_la_mopa`,
+        errors: [{ entity: `sensor.${QR}_error_de_aspirador`, name: "Robot" }, { entity: `sensor.${QR}_dock_error_en_la_base`, name: "Base" }],
+        routines: [`button.${QR}_cocina`],
+        consumables: cons(QR, [{ entity: `sensor.${QR}_dock_tiempo_restante_del_colador`, name: "Colador base" }]) },
+    ],
+  };
+  const log = document.getElementById("log");
+  const hass = (states) => ({ states, config: { time_zone: "Europe/Madrid" }, language: "es",
+    callService: (d, s, data) => { log.textContent += `\n${d}.${s} ${JSON.stringify(data)}`; return Promise.resolve(); } });
+  const mount = (id, states) => { const c = document.createElement("robot-vacuum-duo-card"); c.setConfig(config); c.hass = hass(states); document.getElementById(id).appendChild(c); };
+  mount("a", base);
+  mount("b", { ...base,
+    [`vacuum.${S7}`]: st("cleaning", base[`vacuum.${S7}`].attributes),
+    [`sensor.${S7}_progreso_de_la_limpieza`]: st("45"), [`sensor.${S7}_bateria`]: st("78"),
+    "input_boolean.bloquear_limpieza_planta_baja": st("off") });
+</script>
+</body>
+</html>

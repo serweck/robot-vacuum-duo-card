@@ -11,7 +11,13 @@
     "test": "vitest run",
     "preview": "http-server . -p 8766 -c-1 --cors"
   },
-  "keywords": ["home-assistant", "lovelace", "custom-card", "roborock", "vacuum"],
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "custom-card",
+    "roborock",
+    "vacuum"
+  ],
   "author": "Serweck",
   "license": "MIT",
   "dependencies": {
@@ -23,8 +29,8 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",
-    "happy-dom": "^15.11.7",
     "http-server": "^14.1.1",
+    "jsdom": "^25.0.1",
     "rollup": "^4.13.0",
     "tslib": "^2.6.2",
     "typescript": "^5.4.5",
