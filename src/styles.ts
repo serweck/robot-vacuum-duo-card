@@ -24,7 +24,7 @@ export const styles = css`
   .alert.maint { cursor: pointer; }
   .alert.err { background: rgba(var(--rv-red), .12); border-color: rgba(var(--rv-red), .35); color: rgb(var(--rv-red)); }
   .alert ha-icon { --mdc-icon-size: 18px; flex: none; }
-  .maint-list { margin: 8px 14px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .maint-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .mi { background: var(--rv-chip); border-radius: 10px; padding: 7px 9px; font-size: 12px; display: flex; justify-content: space-between; gap: 6px; }
   .mi b { color: rgb(var(--rv-red)); font-weight: 600; white-space: nowrap; }
   .mi b.warn { color: rgb(var(--rv-amber)); }
@@ -41,7 +41,17 @@ export const styles = css`
   @keyframes rv-wob { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
   .info { flex: 1; min-width: 0; }
   .name { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 6px; }
-  .badge { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: rgba(var(--rv-red), .18); color: rgb(var(--rv-red)); font-weight: 500; }
+  .name .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 11px; padding: 1px 6px; border-radius: 6px; font-weight: 500; display: inline-flex; align-items: center; gap: 2px;
+           white-space: nowrap; flex: none; }
+  .badge ha-icon { --mdc-icon-size: 12px; }
+  .badge.err { background: rgba(var(--rv-red), .18); color: rgb(var(--rv-red)); }
+  .badge.maint { background: rgba(var(--rv-amber), .18); color: rgb(var(--rv-amber)); }
+  .alerts { margin-bottom: 4px; }
+  .err-line { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: rgb(var(--rv-red)); padding: 7px 9px; border-radius: 10px;
+              background: rgba(var(--rv-red), .12); margin-bottom: 6px; }
+  .err-line ha-icon { --mdc-icon-size: 16px; flex: none; }
+  .alerts .maint-list { margin: 0; }
   .state { color: var(--rv-mut); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bat { font-size: 12px; color: var(--rv-mut); display: flex; align-items: center; gap: 3px; }
   .bat ha-icon { --mdc-icon-size: 14px; }

@@ -3,9 +3,9 @@
 Tarjeta Lovelace para Home Assistant que junta dos robots aspiradores (pensada para la integración Roborock) en una sola tarjeta:
 
 - Cabecera con el **bloqueo de la limpieza automática** (un `input_boolean`).
-- **Errores** del robot y de la base en rojo, y un **aviso de mantenimiento** que solo aparece cuando alguna pieza tiene 10 h o menos (o está en negativo).
 - Una fila por robot con batería, estado, habitación y progreso, y los botones **empezar/pausa** y **a la base**.
-- Al tocar la fila: **rutinas**, **modo** (aspirar, fregar o las dos), **aspiración** y **mopa**.
+- Junto al nombre, **etiquetas de aviso**: roja con el error en corto («sin agua») y ámbar con el número de piezas para cambiar (10 h o menos, o en negativo). Sin problemas, no aparece ninguna.
+- Al tocar la fila: primero los **avisos** completos de ese robot y después **rutinas**, **modo** (aspirar, fregar o las dos), **aspiración** y **mopa**.
 
 ## Instalación (HACS)
 

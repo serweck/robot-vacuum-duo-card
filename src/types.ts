@@ -38,6 +38,9 @@ export interface Alert {
   label: string;
   value?: number;
   text: string;
+  /** Solo errores: etiqueta corta para la fila y texto sin el nombre del robot para el detalle. */
+  short?: string;
+  detail?: string;
 }
 
 export interface SelectOption {

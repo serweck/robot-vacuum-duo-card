@@ -16,18 +16,38 @@ const ERROR_TEXT: Record<string, string> = {
   cleaning_tank_full_or_blocked: "depósito de limpieza lleno o atascado",
 };
 
+const ERROR_SHORT: Record<string, string> = {
+  water_empty: "sin agua",
+  waste_water_tank_full: "agua sucia llena",
+  no_dustbin: "sin depósito",
+  no_dustbin_or_filter: "sin depósito",
+  duct_blockage: "atascado",
+  maintenance_brush_jammed: "cepillo atascado",
+  dirty_tank_latch_open: "depósito abierto",
+  cleaning_tank_full_or_blocked: "depósito lleno",
+  main_brush_jammed: "cepillo atascado",
+  side_brush_jammed: "cepillo atascado",
+  wheels_jammed: "ruedas atascadas",
+  wheels_suspended: "ruedas en el aire",
+  robot_trapped: "atrapado",
+  bumper_stuck: "parachoques",
+  low_battery: "batería baja",
+  filter_blocked: "filtro atascado",
+};
+
+/** Etiqueta corta para la fila del robot; «error» si el código no está traducido. */
+export function shortError(state: string): string {
+  return ERROR_SHORT[state] ?? "error";
+}
+
 export function errorAlerts(hass: HomeAssistant, robots: RobotConfig[]): Alert[] {
   const out: Alert[] = [];
   for (const robot of robots) {
     for (const err of robot.errors ?? []) {
       const state = hass.states[err.entity]?.state ?? "";
       if (NOT_AN_ERROR.has(state)) continue;
-      out.push({
-        kind: "error",
-        robot: robot.name,
-        label: err.name,
-        text: `${robot.name} · ${err.name}: ${ERROR_TEXT[state] ?? state}`,
-      });
+      const detail = `${err.name}: ${ERROR_TEXT[state] ?? state}`;
+      out.push({ kind: "error", robot: robot.name, label: err.name, text: `${robot.name} · ${detail}`, short: shortError(state), detail });
     }
   }
   return out;
@@ -47,13 +67,4 @@ export function maintenanceAlerts(hass: HomeAssistant, robots: RobotConfig[], th
     }
   }
   return found.sort((a, b) => a.raw - b.raw).map((f) => f.alert);
-}
-
-export function maintenanceSummary(alerts: Alert[], robotNames: string[]): string {
-  if (!alerts.length) return "";
-  const head = alerts.length === 1 ? "1 pieza para cambiar" : `${alerts.length} piezas para cambiar`;
-  const per = robotNames
-    .map((name) => [name, alerts.filter((a) => a.robot === name).length] as const)
-    .filter(([, n]) => n > 0);
-  return per.length > 1 ? `${head} (${per.map(([name, n]) => `${n} del ${name}`).join(", ")})` : head;
 }

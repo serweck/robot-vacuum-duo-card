@@ -2,12 +2,12 @@ import { LitElement, html, nothing, type TemplateResult } from "lit";
 import type { HomeAssistant } from "custom-card-helpers";
 import type { Alert, CardConfig, RobotConfig, RobotView, SelectView, ServiceCall } from "./types";
 import { buildRobotView } from "./model";
-import { DEFAULT_THRESHOLD, errorAlerts, maintenanceAlerts, maintenanceSummary } from "./alerts";
+import { DEFAULT_THRESHOLD, errorAlerts, maintenanceAlerts } from "./alerts";
 import { pressRoutine, primaryAction, returnHome, selectOption, setFanSpeed, toggleLock } from "./actions";
 import { styles } from "./styles";
 
 export const CARD_TAG = "robot-vacuum-duo-card";
-export const CARD_VERSION = "0.1.0";
+export const CARD_VERSION = "0.2.0";
 
 export function validateConfig(config: Partial<CardConfig> | undefined): CardConfig {
   const robots = config?.robots;
@@ -37,19 +37,16 @@ export class RobotVacuumDuoCard extends LitElement {
     hass: { attribute: false },
     _config: { state: true },
     _open: { state: true },
-    _maintOpen: { state: true },
   };
 
   // `declare` para que ningún compilador cree campos propios que tapen los accesores reactivos de lit.
   declare hass?: HomeAssistant;
   declare private _config?: CardConfig;
   declare private _open: Set<number>;
-  declare private _maintOpen: boolean;
 
   constructor() {
     super();
     this._open = new Set();
-    this._maintOpen = false;
   }
 
   setConfig(config: CardConfig): void {
@@ -78,22 +75,15 @@ export class RobotVacuumDuoCard extends LitElement {
     const views = cfg.robots.map((r) => buildRobotView(hass, r));
     const errors = errorAlerts(hass, cfg.robots);
     const maint = maintenanceAlerts(hass, cfg.robots, cfg.maintenance_threshold ?? DEFAULT_THRESHOLD);
-    const summary = maintenanceSummary(maint, cfg.robots.map((r) => r.name));
     return html`
       <ha-card>
         <div class="top">
           <div class="t"><ha-icon icon="mdi:robot-vacuum"></ha-icon>${cfg.title ?? "Robots"}</div>
           ${this._renderLock()}
         </div>
-        ${errors.map((e) => html`<div class="alert err"><ha-icon icon="mdi:alert-circle"></ha-icon><div>${e.text}</div></div>`)}
-        ${summary
-          ? html`<div class="alert maint" @click=${() => (this._maintOpen = !this._maintOpen)}>
-                <ha-icon icon="mdi:wrench"></ha-icon><div>${summary} · toca para ${this._maintOpen ? "ocultar" : "ver"}</div>
-              </div>
-              ${this._maintOpen ? this._renderMaint(maint) : nothing}`
-          : nothing}
         <div class="robots">
-          ${cfg.robots.map((r, i) => this._renderRobot(r, views[i], errors.filter((e) => e.robot === r.name), i))}
+          ${cfg.robots.map((r, i) =>
+            this._renderRobot(r, views[i], errors.filter((e) => e.robot === r.name), maint.filter((a) => a.robot === r.name), i))}
         </div>
       </ha-card>
     `;
@@ -113,16 +103,22 @@ export class RobotVacuumDuoCard extends LitElement {
     </div>`;
   }
 
-  private _renderMaint(maint: Alert[]): TemplateResult {
-    const many = (this._config?.robots.length ?? 0) > 1;
-    return html`<div class="maint-list">
-      ${maint.map((a) => html`<div class="mi">
-        <span>${many ? `${a.robot} · ` : ""}${a.label}</span><b class=${(a.value ?? 0) < 0 ? "" : "warn"}>${a.value} h</b>
-      </div>`)}
+  /** Avisos de un robot al desplegarlo: errores completos y sus piezas para cambiar, de peor a menos mala. */
+  private _renderAlerts(errors: Alert[], maint: Alert[]): TemplateResult | typeof nothing {
+    if (!errors.length && !maint.length) return nothing;
+    const hours = (v = 0) => `${v < 0 ? "−" : ""}${Math.abs(v)} h`;
+    return html`<div class="alerts">
+      <div class="lbl">Avisos</div>
+      ${errors.map((e) => html`<div class="err-line"><ha-icon icon="mdi:alert-circle"></ha-icon><span>${e.detail}</span></div>`)}
+      ${maint.length
+        ? html`<div class="maint-list">
+            ${maint.map((a) => html`<div class="mi"><span>${a.label}</span><b class=${(a.value ?? 0) < 0 ? "" : "warn"}>${hours(a.value)}</b></div>`)}
+          </div>`
+        : nothing}
     </div>`;
   }
 
-  private _renderRobot(r: RobotConfig, v: RobotView, errors: Alert[], i: number): TemplateResult {
+  private _renderRobot(r: RobotConfig, v: RobotView, errors: Alert[], maint: Alert[], i: number): TemplateResult {
     const open = this._open.has(i);
     const ringValue = v.cleaning ? v.progress ?? 0 : v.battery ?? 0;
     const color = v.cleaning ? "var(--rv-blue)" : v.battery !== null && v.battery < 20 ? "var(--rv-red)" : "var(--rv-green)";
@@ -132,7 +128,13 @@ export class RobotVacuumDuoCard extends LitElement {
           <div><ha-icon icon="mdi:robot-vacuum"></ha-icon></div>
         </div>
         <div class="info">
-          <div class="name">${v.name}${errors.length ? html`<span class="badge">${errors[0].label.toLowerCase()}</span>` : nothing}</div>
+          <div class="name">
+            <span class="n">${v.name}</span>
+            ${errors.length ? html`<span class="badge err" title=${errors.map((e) => e.detail).join(" · ")}>${errors[0].short}</span>` : nothing}
+            ${maint.length
+              ? html`<span class="badge maint" title="Piezas para cambiar"><ha-icon icon="mdi:wrench"></ha-icon>${maint.length}</span>`
+              : nothing}
+          </div>
           <div class="state">${v.statusText}</div>
           <div class="bat"><ha-icon icon=${batteryIcon(v.battery)}></ha-icon>${v.battery === null ? "—" : `${v.battery} %`}</div>
         </div>
@@ -146,7 +148,7 @@ export class RobotVacuumDuoCard extends LitElement {
         </div>
       </div>
       ${v.cleaning ? html`<div class="bar"><div style="width:${v.progress ?? 0}%"></div></div>` : nothing}
-      ${open ? this._renderDetail(r, v) : nothing}
+      ${open ? this._renderDetail(r, v, errors, maint) : nothing}
     </div>`;
   }
 
@@ -158,8 +160,8 @@ export class RobotVacuumDuoCard extends LitElement {
     </div>`;
   }
 
-  private _renderDetail(r: RobotConfig, v: RobotView): TemplateResult {
-    return html`<div class="detail">
+  private _renderDetail(r: RobotConfig, v: RobotView, errors: Alert[], maint: Alert[]): TemplateResult {
+    return html`<div class="detail">${this._renderAlerts(errors, maint)}
       ${v.routines.length
         ? html`<div class="lbl">Rutinas</div>
             <div class="chips">

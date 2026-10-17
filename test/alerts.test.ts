@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { errorAlerts, maintenanceAlerts, maintenanceSummary } from "../src/alerts";
+import { errorAlerts, maintenanceAlerts, shortError } from "../src/alerts";
 import { makeHass, st, S7_CONFIG, QR_CONFIG } from "./fixtures";
 
 const robots = [S7_CONFIG, QR_CONFIG];
@@ -38,16 +38,22 @@ describe("alerts", () => {
 
   it("water_empty is translated, other codes stay raw", () => {
     expect(errorAlerts(makeHass(), robots)).toEqual([
-      { kind: "error", robot: "S7 Max Ultra", label: "Base", text: "S7 Max Ultra · Base: depósito de agua limpia vacío" },
+      { kind: "error", robot: "S7 Max Ultra", label: "Base", text: "S7 Max Ultra · Base: depósito de agua limpia vacío",
+        short: "sin agua", detail: "Base: depósito de agua limpia vacío" },
     ]);
     const h = makeHass({ "sensor.roborock_qrevo_edge_series_error_de_aspirador": st("bumper_stuck") });
     expect(errorAlerts(h, robots).map((x) => x.text)).toContain("Qrevo Edge · Robot: bumper_stuck");
   });
 
-  it("summary text matches the mockup", () => {
-    const names = robots.map((r) => r.name);
-    expect(maintenanceSummary(maintenanceAlerts(makeHass(), robots), names)).toBe("8 piezas para cambiar (6 del S7 Max Ultra, 2 del Qrevo Edge)");
-    expect(maintenanceSummary(maintenanceAlerts(makeHass(), [QR_CONFIG]).slice(0, 1), ["Qrevo Edge"])).toBe("1 pieza para cambiar");
-    expect(maintenanceSummary([], names)).toBe("");
+  it("short error label for the robot row", () => {
+    expect(shortError("water_empty")).toBe("sin agua");
+    expect(shortError("waste_water_tank_full")).toBe("agua sucia llena");
+    expect(shortError("main_brush_jammed")).toBe("cepillo atascado");
+    expect(shortError("algo_nuevo")).toBe("error");
+  });
+
+  it("error alerts carry the short label and the detail without the robot name", () => {
+    const [e] = errorAlerts(makeHass(), robots);
+    expect(e).toMatchObject({ short: "sin agua", detail: "Base: depósito de agua limpia vacío" });
   });
 });

@@ -26,10 +26,17 @@ describe("render", () => {
     expect($(".lock")?.classList.contains("off")).toBe(false);
   });
 
-  it("shows the base error in red and the base badge on the S7 only", async () => {
+  it("the header has no alerts; each row shows its own badges", async () => {
     const { $$ } = await mount();
-    expect($$(".alert.err").map((e) => e.textContent?.trim())).toEqual(["S7 Max Ultra · Base: depósito de agua limpia vacío"]);
-    expect($$(".robot").map((r) => !!r.querySelector(".badge"))).toEqual([true, false]);
+    expect($$(".alert")).toHaveLength(0);
+    const rows = $$(".robot");
+    expect(rows.map((r) => r.querySelector(".badge.err")?.textContent?.trim() ?? null)).toEqual(["sin agua", null]);
+    expect(rows.map((r) => r.querySelector(".badge.maint")?.textContent?.trim() ?? null)).toEqual(["6", "2"]);
+  });
+
+  it("a robot without problems has no badges", async () => {
+    const { $$ } = await mount({}, { robots: [{ ...QR_CONFIG, consumables: [QR_CONFIG.consumables![0]] }] });
+    expect($$(".robot .badge")).toHaveLength(0);
   });
 
   it("primary button calls vacuum.start on a docked robot and pause on a cleaning one", async () => {
@@ -58,14 +65,21 @@ describe("render", () => {
     expect(off.$(".lock")?.textContent).toContain("Limpieza automática activa");
   });
 
-  it("maintenance summary is shown with today's data and hidden when nothing is under threshold", async () => {
+  it("expanding a robot shows its alerts first: error detail and its maintenance list, worst first", async () => {
     const m = await mount();
-    expect(m.$(".alert.maint")?.textContent).toContain("8 piezas para cambiar (6 del S7 Max Ultra, 2 del Qrevo Edge)");
-    expect(m.$$(".maint-list .mi")).toHaveLength(0);
-    await m.click(m.$(".alert.maint"));
-    expect(m.$$(".maint-list .mi")).toHaveLength(8);
-    const clean = await mount({}, { robots: [{ ...QR_CONFIG, consumables: [QR_CONFIG.consumables![0]] }] });
-    expect(clean.$(".alert.maint")).toBeNull();
+    expect(m.$$(".robot")[0].querySelector(".alerts")).toBeNull();
+    await m.click(m.$$(".robot")[0].querySelector(".row"));
+    const alerts = m.$$(".robot")[0].querySelector(".detail .alerts")!;
+    expect(m.$$(".robot")[0].querySelector(".detail")!.firstElementChild).toBe(alerts);
+    expect(Array.from(alerts.querySelectorAll(".err-line")).map((e) => e.textContent?.trim())).toEqual(["Base: depósito de agua limpia vacío"]);
+    const items = Array.from(alerts.querySelectorAll(".mi")).map((e) => `${e.querySelector("span")?.textContent} ${e.querySelector("b")?.textContent}`);
+    expect(items).toEqual(["Sensores −201 h", "Filtro −157 h", "Cepillo lateral −107 h", "Cepillo base −25 h", "Cepillo principal −7 h", "Colador base −3 h"]);
+  });
+
+  it("a robot without problems has no alerts block when expanded", async () => {
+    const m = await mount({}, { robots: [{ ...QR_CONFIG, consumables: [QR_CONFIG.consumables![0]] }] });
+    await m.click(m.$(".robot .row"));
+    expect(m.$(".detail .alerts")).toBeNull();
   });
 
   it("expanding a robot shows its routines and modes", async () => {
