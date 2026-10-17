@@ -100,3 +100,13 @@ describe("render", () => {
     expect(m.calls).toEqual([]);
   });
 });
+
+describe("render (final review)", () => {
+  it("an unavailable lock says so and does not toggle", async () => {
+    const m = await mount({ "input_boolean.bloquear_limpieza_planta_baja": st("unavailable") });
+    expect(m.$(".lock")?.textContent).toContain("Bloqueo no disponible");
+    expect(m.$(".lock")?.classList.contains("na")).toBe(true);
+    await m.click(m.$(".lock"));
+    expect(m.calls).toEqual([]);
+  });
+});

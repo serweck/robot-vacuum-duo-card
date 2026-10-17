@@ -14,6 +14,12 @@ export function validateConfig(config: Partial<CardConfig> | undefined): CardCon
   if (!Array.isArray(robots) || robots.length === 0) throw new Error("robots: hace falta al menos un robot");
   robots.forEach((r, i) => {
     if (!r || !r.vacuum) throw new Error(`robots[${i}].vacuum es obligatorio`);
+    if (!r.name) throw new Error(`robots[${i}].name es obligatorio`);
+    for (const key of ["errors", "consumables"] as const) {
+      (r[key] ?? []).forEach((item, j) => {
+        if (!item?.name) throw new Error(`robots[${i}].${key}[${j}].name es obligatorio`);
+      });
+    }
   });
   return config as CardConfig;
 }
@@ -95,8 +101,12 @@ export class RobotVacuumDuoCard extends LitElement {
 
   private _renderLock(): TemplateResult | typeof nothing {
     const lock = this._config?.lock;
-    if (!lock || !this.hass?.states[lock]) return nothing;
-    const on = this.hass.states[lock].state === "on";
+    if (!lock) return nothing;
+    const state = this.hass?.states[lock]?.state;
+    if (state !== "on" && state !== "off") {
+      return html`<div class="lock na"><ha-icon icon="mdi:help-circle-outline"></ha-icon><span>Bloqueo no disponible</span></div>`;
+    }
+    const on = state === "on";
     return html`<div class="lock ${on ? "" : "off"}" @click=${() => this._call(toggleLock(lock))}>
       <ha-icon icon="mdi:robot-vacuum-off"></ha-icon>
       <span>${on ? "Limpieza automática bloqueada" : "Limpieza automática activa"}</span>

@@ -18,6 +18,7 @@ export const styles = css`
           user-select: none; background: rgba(var(--rv-red), .15); color: rgb(var(--rv-red)); border: 1px solid rgba(var(--rv-red), .35); }
   .lock ha-icon { --mdc-icon-size: 16px; }
   .lock.off { background: var(--rv-chip); color: var(--rv-mut); border-color: var(--rv-line); }
+  .lock.na { background: var(--rv-chip); color: var(--rv-mut); border: 1px dashed var(--rv-line); cursor: default; }
   .alert { margin: 10px 14px 0; padding: 9px 11px; border-radius: 12px; font-size: 12.5px; display: flex; gap: 8px; align-items: center;
            background: rgba(var(--rv-amber), .12); border: 1px solid rgba(var(--rv-amber), .35); color: rgb(var(--rv-amber)); }
   .alert.maint { cursor: pointer; }
@@ -57,8 +58,9 @@ export const styles = css`
   .chip ha-icon { --mdc-icon-size: 16px; }
   .chip.rut { background: rgba(var(--rv-green), .12); color: rgb(var(--rv-green)); }
   .chip.dis { opacity: .45; cursor: default; }
-  .seg { display: flex; background: var(--rv-chip); border-radius: 10px; padding: 3px; gap: 3px; }
-  .seg div { flex: 1; text-align: center; padding: 6px 4px; border-radius: 8px; font-size: 12px; cursor: pointer; color: var(--rv-mut); }
+  .seg { display: flex; flex-wrap: wrap; background: var(--rv-chip); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg div { flex: 1 1 auto; min-width: 0; text-align: center; padding: 6px 6px; border-radius: 8px; font-size: 12px; cursor: pointer;
+             color: var(--rv-mut); white-space: nowrap; }
   .seg div.on { background: var(--primary-color, rgb(var(--rv-blue))); color: var(--text-primary-color, #fff); }
   .rooms-note { font-size: 12px; color: var(--rv-mut); display: flex; gap: 6px; align-items: center; }
   .rooms-note ha-icon { --mdc-icon-size: 16px; }
