@@ -31,11 +31,14 @@ robots:
     errors:
       - { entity: sensor.s7_max_ultra_error_de_aspirador, name: Robot }
       - { entity: sensor.s7_max_ultra_error_en_la_base, name: Base }
+      - { entity: binary_sensor.s7_max_ultra_escasez_de_agua, name: Robot sin agua, short: sin agua }
     routines:
       - button.s7_max_ultra_cocina_full
     consumables:
       - { entity: sensor.s7_max_ultra_tiempo_restante_del_filtro, name: Filtro }
 ```
+
+En `errors` caben sensores de código de error (avisan con cualquier valor que no sea `none`/`ok`) y `binary_sensor`: los de clase `problem` avisan encendidos y los de `connectivity` (mopa o depósito acoplado) apagados. En los `binary_sensor`, `name` es el texto del aviso y `short` (opcional) la etiqueta de la fila.
 
 Las claves que falten simplemente no se pintan. La aspiración sale de los atributos `fan_speed` y `fan_speed_list` del `vacuum`.
 

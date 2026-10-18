@@ -44,8 +44,17 @@ export function errorAlerts(hass: HomeAssistant, robots: RobotConfig[]): Alert[]
   const out: Alert[] = [];
   for (const robot of robots) {
     for (const err of robot.errors ?? []) {
-      const state = hass.states[err.entity]?.state ?? "";
+      const entity = hass.states[err.entity];
+      const state = entity?.state ?? "";
       if (NOT_AN_ERROR.has(state)) continue;
+      if (err.entity.startsWith("binary_sensor.")) {
+        // «problem» avisa encendido; «connectivity» (mopa, depósito acoplado) avisa apagado.
+        const bad = entity?.attributes?.device_class === "connectivity" ? "off" : "on";
+        if (state !== bad) continue;
+        out.push({ kind: "error", robot: robot.name, label: err.name, text: `${robot.name} · ${err.name}`,
+          short: err.short ?? err.name.toLowerCase(), detail: err.name });
+        continue;
+      }
       const detail = `${err.name}: ${ERROR_TEXT[state] ?? state}`;
       out.push({ kind: "error", robot: robot.name, label: err.name, text: `${robot.name} · ${detail}`, short: shortError(state), detail });
     }

@@ -56,4 +56,43 @@ describe("alerts", () => {
     const [e] = errorAlerts(makeHass(), robots);
     expect(e).toMatchObject({ short: "sin agua", detail: "Base: depósito de agua limpia vacío" });
   });
+  it("problem binary sensors alert when on, connectivity ones when off", () => {
+    const qrBin = {
+      ...QR_CONFIG,
+      errors: [
+        ...(QR_CONFIG.errors ?? []),
+        { entity: "binary_sensor.roborock_qrevo_edge_series_dock_caja_de_agua_limpia", name: "Base sin agua limpia", short: "sin agua" },
+        { entity: "binary_sensor.roborock_qrevo_edge_series_escasez_de_agua", name: "Robot sin agua" },
+        { entity: "binary_sensor.roborock_qrevo_edge_series_mopa_acoplada", name: "Mopa sin acoplar", short: "sin mopa" },
+      ],
+    };
+    const ok = makeHass({
+      "binary_sensor.roborock_qrevo_edge_series_dock_caja_de_agua_limpia": st("off", { device_class: "problem" }),
+      "binary_sensor.roborock_qrevo_edge_series_escasez_de_agua": st("off", { device_class: "problem" }),
+      "binary_sensor.roborock_qrevo_edge_series_mopa_acoplada": st("on", { device_class: "connectivity" }),
+    });
+    expect(errorAlerts(ok, [qrBin])).toEqual([]);
+
+    const bad = makeHass({
+      "binary_sensor.roborock_qrevo_edge_series_dock_caja_de_agua_limpia": st("on", { device_class: "problem" }),
+      "binary_sensor.roborock_qrevo_edge_series_escasez_de_agua": st("on", { device_class: "problem" }),
+      "binary_sensor.roborock_qrevo_edge_series_mopa_acoplada": st("off", { device_class: "connectivity" }),
+    });
+    expect(errorAlerts(bad, [qrBin])).toEqual([
+      { kind: "error", robot: "Qrevo Edge", label: "Base sin agua limpia", text: "Qrevo Edge · Base sin agua limpia",
+        short: "sin agua", detail: "Base sin agua limpia" },
+      { kind: "error", robot: "Qrevo Edge", label: "Robot sin agua", text: "Qrevo Edge · Robot sin agua",
+        short: "robot sin agua", detail: "Robot sin agua" },
+      { kind: "error", robot: "Qrevo Edge", label: "Mopa sin acoplar", text: "Qrevo Edge · Mopa sin acoplar",
+        short: "sin mopa", detail: "Mopa sin acoplar" },
+    ]);
+  });
+
+  it("unavailable binary sensors are not errors", () => {
+    const cfg = { ...QR_CONFIG, errors: [{ entity: "binary_sensor.roborock_qrevo_edge_series_mopa_acoplada", name: "Mopa sin acoplar" }] };
+    for (const v of ["unknown", "unavailable"]) {
+      const h = makeHass({ "binary_sensor.roborock_qrevo_edge_series_mopa_acoplada": st(v, { device_class: "connectivity" }) });
+      expect(errorAlerts(h, [cfg])).toEqual([]);
+    }
+  });
 });

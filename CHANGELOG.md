@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-10-18
+- `errors` acepta `binary_sensor`: los de clase `problem` avisan encendidos y los de `connectivity` apagados. Así salen la falta de agua, el agua limpia o sucia de la base y la mopa o el depósito sin acoplar, que la integración no siempre pasa al sensor de error.
+- Nueva clave opcional `short` en cada error para la etiqueta corta de la fila.
+
 ## 0.2.0 — 2026-10-17
 - Los avisos pasan de la cabecera a cada robot: junto al nombre, una etiqueta roja con el error en corto («sin agua») y otra ámbar con la llave y el número de piezas para cambiar.
 - Al desplegar un robot, lo primero es «Avisos»: el error completo y sus piezas, de peor a menos mala.

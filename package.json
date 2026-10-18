@@ -1,6 +1,6 @@
 {
   "name": "robot-vacuum-duo-card",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Tarjeta Lovelace que junta dos robots aspiradores Roborock en una sola tarjeta para Home Assistant",
   "type": "module",
   "main": "dist/robot-vacuum-duo-card.js",

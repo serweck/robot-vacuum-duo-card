@@ -1,6 +1,8 @@
 export interface NamedEntity {
   entity: string;
   name: string;
+  /** Solo binary_sensor en `errors`: etiqueta corta para la fila del robot (por defecto, el nombre). */
+  short?: string;
 }
 
 export interface RobotConfig {

@@ -7,7 +7,7 @@ import { pressRoutine, primaryAction, returnHome, selectOption, setFanSpeed, tog
 import { styles } from "./styles";
 
 export const CARD_TAG = "robot-vacuum-duo-card";
-export const CARD_VERSION = "0.2.0";
+export const CARD_VERSION = "0.2.1";
 
 export function validateConfig(config: Partial<CardConfig> | undefined): CardConfig {
   const robots = config?.robots;
